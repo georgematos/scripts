@@ -1,0 +1,110 @@
+#/bin/bash
+
+executar() {
+
+  dump
+
+  echo "Dropando Schema"
+  psql -U postgres -d bentham -c "DROP SCHEMA public CASCADE"; sleep 2
+
+  echo "Criando Schema"
+  psql -U postgres -d bentham -c "CREATE SCHEMA public"; sleep 2
+
+  echo "Importando base para o banco local"
+  psql -h localhost -p 5432 -U postgres bentham < $BASE"_"$DATA.backup
+}
+
+dump() {
+  DATA=`date +%Y%m%d_%Hh%Mm`
+
+  COMANDO_DUMP=`echo "sudo pg_dump -U postgres -W -h localhost $BASE > ~/$BASE/backup/$BASE""_""$DATA.backup"`
+  echo $COMANDO_DUMP
+
+  echo "Criando o dump do banco no servidor"
+  ssh ubuntu@quantaconsultoria.com $COMANDO_DUMP
+
+  echo "Baixando o dump para o localhost"
+  scp ubuntu@quantaconsultoria.com:/home/ubuntu/$BASE/backup/$BASE"_"$DATA.backup .
+}
+
+init() {
+  echo -n "Digite a base de sua preferencia (preurbis/seasdhrj/prodoeste) "
+  read BASE
+
+  ssh ubuntu@quantaconsultoria.com test -d /home/ubuntu/$BASE
+}
+
+importar() {
+  DATA=`date +%Y%m%d_%Hh%Mm`
+
+  echo "\033[01;37mDropando Schema\033[01;37m"
+  psql -U postgres -d bentham -c "DROP SCHEMA public CASCADE"; sleep 2
+
+  echo "\033[01;37mCriando Schema\033[01;37m"
+  psql -U postgres -d bentham -c "CREATE SCHEMA public"; sleep 2
+
+  echo "\033[01;32mImportando $1 para o banco local\033[01;32m"
+  psql -h localhost -p 5432 -U postgres bentham < $1
+}
+
+help() {
+  echo "
+
+  -== Antes de utilizar ==-
+
+  Antes de executar esse Script faça as seguintes alterações no arquivo
+  /etc/postgresql/<versao>/main/pg_hba.conf para o usuario postgres:
+
+  local   all         postgres                          md5
+
+  Reinicie o serviço /etc/init.d/postgresql restart
+
+  -== Opções ==-
+
+   nenhum arg.  Baixa uma versão atualizada da base e importa automaticamente
+   -d,          Apenas cria e baixa o dump da base escolhida
+   -i <dump>,   Importa um dump já existente
+   -h,          Exibe a ajuda
+
+  "
+  exit 0
+}
+
+#==================================================
+#                      Main                       #
+#==================================================
+
+if [ "$1" = "-h" ]
+then
+  help
+fi
+
+if [ "$1" = "-i" ]
+then
+  if [ -n "$2" ] && [ -e "$2" ]
+  then
+    importar $2
+    exit 0
+  else
+    echo "\033[01;31mPor favor passe um nome de arquivo válido como argumento.\033[01;31m"
+    exit 1
+  fi
+fi
+
+if [ "$1" = "-d" ]
+then
+  init
+  if [ $? -eq 0 ]
+  then
+    dump
+  fi
+else
+  init
+  if [ $? -eq 0 ]
+  then
+    executar
+  else
+    echo "\033[01;31mO diretório escolhido não existe, por favor, escolha um dos apresentados na lista.\033[01;31m"
+    exit 1
+  fi
+fi
