@@ -1,10 +1,5 @@
 #!/bin/bash
 
-# Realizando backup
-cp /home/george/git/bentham/bin/run_tests.sh backTemp
-
-scriptDeTestes='#!/bin/bash
-
 i=0
 files=()
 CIRCLE_NODE_TOTAL=1
@@ -24,6 +19,4 @@ mvn test -Dtest=ConsultasSQLDBTest -Dflyway.skip=true
 DISPLAY=:1999 mvn cobertura:cobertura -Dtest="${files[@]}" -Dflyway.skip=true
 returnCode=$?
 
-exit $returnCode'
-
-echo $scriptDeTestes > /home/george/Desenvolvimento/workspace/bentham/bin/run_tests.sh
+exit $returnCode
