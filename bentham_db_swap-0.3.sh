@@ -18,13 +18,21 @@ dump() {
   DATA=`date +%Y%m%d_%Hh%Mm`
 
   COMANDO_DUMP=`echo "sudo pg_dump -U postgres -W -h localhost $BASE > ~/$BASE/backup/$BASE""_""$DATA.backup"`
-  echo $COMANDO_DUMP
 
   echo "Criando o dump do banco no servidor"
   ssh ubuntu@quantaconsultoria.com $COMANDO_DUMP
 
   echo "Baixando o dump para o localhost"
   scp ubuntu@quantaconsultoria.com:/home/ubuntu/$BASE/backup/$BASE"_"$DATA.backup .
+}
+
+dump_local() {
+  echo -n "Qual é a base atual? (preurbis/seasdhrj/prodoeste) "
+  read BASE
+  DATA=`date +%Y%m%d_%Hh%Mm`
+  COMANDO_DUMP=`echo "sudo pg_dump -U postgres -W -h localhost bentham -f $BASE""_""$DATA.backup_local"`
+
+  $COMANDO_DUMP
 }
 
 init() {
@@ -64,6 +72,7 @@ help() {
    nenhum arg.  Baixa uma versão atualizada da base e importa automaticamente
    -d,          Apenas cria e baixa o dump da base escolhida
    -i <dump>,   Importa um dump já existente
+   -l,          Cria dump da base local
    -h,          Exibe a ajuda
 
   "
@@ -91,18 +100,33 @@ then
   fi
 fi
 
+if [ "$1" = "-l" ]
+then
+  dump_local
+  if [ $? -eq 0 ]
+  then
+    echo "\033[01;32mDump local criado com sucesso\033[01;32m"
+    exit 0
+  else
+    echo "\033[01;31mOcorreu um erro ao criar o dump local\033[01;31m"
+    exit 1
+  fi
+fi
+
 if [ "$1" = "-d" ]
 then
   init
   if [ $? -eq 0 ]
   then
     dump
+    exit 0
   fi
 else
   init
   if [ $? -eq 0 ]
   then
     executar
+    exit 0
   else
     echo "\033[01;31mO diretório escolhido não existe, por favor, escolha um dos apresentados na lista.\033[01;31m"
     exit 1
