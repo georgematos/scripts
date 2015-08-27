@@ -12,6 +12,18 @@ executar() {
 
   echo "Importando base para o banco local"
   psql -h localhost -p 5432 -U postgres bentham < $BASE"_"$DATA.backup
+
+  organizar
+}
+
+organizar() {
+  if [ -d $BASE ]
+  then
+    mv $BASE"_"$DATA.backup $BASE
+  else
+    mkdir $BASE
+    mv $BASE"_"$DATA.backup $BASE
+  fi
 }
 
 dump() {
@@ -27,7 +39,7 @@ dump() {
 }
 
 dump_local() {
-  echo -n "Qual é a base atual? (preurbis/seasdhrj/prodoeste) "
+  echo -n "Qual é a base atual? (preurbis/seasdhrj/prodoeste/cidades) "
   read BASE
   DATA=`date +%Y%m%d_%Hh%Mm`
   COMANDO_DUMP=`echo "sudo pg_dump -U postgres -W -h localhost bentham -f $BASE""_""$DATA.backup_local"`
@@ -36,7 +48,7 @@ dump_local() {
 }
 
 init() {
-  echo -n "Digite a base de sua preferencia (preurbis/seasdhrj/prodoeste) "
+  echo -n "Digite a base de sua preferencia (preurbis/seasdhrj/prodoeste/cidades) "
   read BASE
 
   ssh ubuntu@quantaconsultoria.com test -d /home/ubuntu/$BASE
@@ -119,6 +131,7 @@ then
   if [ $? -eq 0 ]
   then
     dump
+    organizar
     exit 0
   fi
 else
