@@ -2,16 +2,30 @@
 
 executar() {
 
-  dump
+  if [ "$SERVIDOR" = "producao" ]
+  then
+    dumpProducao
 
-  echo "Dropando Schema"
-  psql -U postgres -d bentham -c "DROP SCHEMA public CASCADE"; sleep 2
+    echo "Dropando Schema"
+    psql -U postgres -d bentham -c "DROP SCHEMA public CASCADE"; sleep 2
 
-  echo "Criando Schema"
-  psql -U postgres -d bentham -c "CREATE SCHEMA public"; sleep 2
+    echo "Criando Schema"
+    psql -U postgres -d bentham -c "CREATE SCHEMA public"; sleep 2
 
-  echo "Importando base para o banco local"
-  psql -h localhost -p 5432 -U postgres bentham < $BASE"_"$DATA.backup
+    echo "Importando base para o banco local"
+    psql -h localhost -p 5432 -U postgres bentham < $BASE"_"$DATA.backup
+  else
+    dumpHomologacao
+
+    echo "Dropando Schema"
+    psql -U postgres -d bentham -c "DROP SCHEMA public CASCADE"; sleep 2
+
+    echo "Criando Schema"
+    psql -U postgres -d bentham -c "CREATE SCHEMA public"; sleep 2
+
+    echo "Importando base para o banco local"
+    psql -h localhost -p 5432 -U postgres bentham < "homologacao_"$BASE"_"$DATA.backup
+  fi
 
   organizar
 }
@@ -19,14 +33,24 @@ executar() {
 organizar() {
   if [ -d $BASE ]
   then
-    mv $BASE"_"$DATA.backup $BASE
+    if [ "$SERVIDOR" = "producao" ]
+    then
+      mv $BASE"_"$DATA.backup $BASE
+    else
+      mv "homologacao_"$BASE"_"$DATA.backup $BASE
+    fi
   else
     mkdir $BASE
-    mv $BASE"_"$DATA.backup $BASE
+    if [ "$SERVIDOR" = "producao" ]
+    then
+      mv $BASE"_"$DATA.backup $BASE
+    else
+      mv "homologacao_"$BASE"_"$DATA.backup $BASE
+    fi
   fi
 }
 
-dump() {
+dumpProducao() {
   DATA=`date +%Y%m%d_%Hh%Mm`
 
   COMANDO_DUMP=`echo "sudo pg_dump -U postgres -W -h localhost $BASE > ~/$BASE/backup/$BASE""_""$DATA.backup"`
@@ -36,6 +60,18 @@ dump() {
 
   echo "Baixando o dump para o localhost"
   scp ubuntu@quantaconsultoria.com:/home/ubuntu/$BASE/backup/$BASE"_"$DATA.backup .
+}
+
+dumpHomologacao() {
+  DATA=`date +%Y%m%d_%Hh%Mm`
+
+  COMANDO_DUMP=`echo "sudo pg_dump -U postgres -W -h localhost "homologacao_"$BASE > ~/$BASE/"homologacao_"$BASE""_""$DATA.backup"`
+
+  echo "Criando o dump do banco no servidor"
+  ssh ubuntu@homologacao.quantaconsultoria.com $COMANDO_DUMP
+
+  echo "Baixando o dump para o localhost"
+  scp ubuntu@homologacao.quantaconsultoria.com:/home/ubuntu/$BASE/"homologacao_"$BASE"_"$DATA.backup .
 }
 
 dump_local() {
@@ -82,28 +118,53 @@ help() {
   -== Opções ==-
 
    nenhum arg.  Baixa uma versão atualizada da base e importa automaticamente
-   -d,          Apenas cria e baixa o dump da base escolhida
-   -i <dump>,   Importa um dump já existente
-   -l,          Cria dump da base local
-   -h,          Exibe a ajuda
+   -d,                            Apenas cria e baixa o dump da base escolhida
+   -i <dump>,                     Importa um dump já existente
+   -l,                            Cria dump da base local
+   -t <dump> <servidor remoto>,   Envia um dump existente para um servidor remoto (em desenvolvimento)
+   -h,                            Exibe a ajuda
 
   "
   exit 0
 }
 
+serverSelect() {
+
+  echo "Escolha um servidor
+  1 - producao
+  2 - homologacao \n"
+  read opcao
+
+  SERVIDOR=""
+  echo $SERVIDOR
+
+  if [ $opcao -eq 1 ]; then
+    SERVIDOR='producao'
+  elif [ $opcao -eq 2 ]; then
+    SERVIDOR='homologacao'
+  else
+    echo "\033[01;31mEscolha uma opção válida.\033[01;31m"
+    exit 1
+  fi
+
+}
+
 #==================================================
 #                      Main                       #
 #==================================================
+clear
 
-if [ "$1" = "-h" ]
-then
+if [ "$1" = "-h" ]; then
   help
 fi
 
-if [ "$1" = "-i" ]
-then
-  if [ -n "$2" ] && [ -e "$2" ]
-  then
+if [ "$1" = "-t" ]; then
+  echo "Esta opção ainda não está disponível..."
+  exit 0
+fi
+
+if [ "$1" = "-i" ]; then
+  if [ -n "$2" ] && [ -e "$2" ]; then
     importar $2
     exit 0
   else
@@ -112,11 +173,9 @@ then
   fi
 fi
 
-if [ "$1" = "-l" ]
-then
+if [ "$1" = "-l" ]; then
   dump_local
-  if [ $? -eq 0 ]
-  then
+  if [ $? -eq 0 ]; then
     echo "\033[01;32mDump local criado com sucesso\033[01;32m"
     exit 0
   else
@@ -125,19 +184,22 @@ then
   fi
 fi
 
-if [ "$1" = "-d" ]
-then
+if [ "$1" = "-d" ]; then
+  serverSelect
   init
-  if [ $? -eq 0 ]
-  then
-    dump
+  if [ $? -eq 0 ]; then
+    if [ "$SERVIDOR" = "producao" ]; then
+      dumpProducao
+    else
+      dumpHomologacao
+    fi
     organizar
     exit 0
   fi
 else
+  serverSelect
   init
-  if [ $? -eq 0 ]
-  then
+  if [ $? -eq 0 ]; then
     executar
     exit 0
   else
