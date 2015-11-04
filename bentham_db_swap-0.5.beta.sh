@@ -1,5 +1,7 @@
 #/bin/bash
 
+VERSION="0.4"
+
 executar() {
 
   if [ "$SERVIDOR" = "producao" ]
@@ -31,21 +33,18 @@ executar() {
 }
 
 organizar() {
-  if [ -d $BASE ]
-  then
-    if [ "$SERVIDOR" = "producao" ]
-    then
-      mv $BASE"_"$DATA.backup $BASE
-    else
+  if [ -d $BASE ]; then
+    if [ "$SERVIDOR" = "homologacao"]; then
       mv "homologacao_"$BASE"_"$DATA.backup $BASE
+    else
+      mv $BASE"_"$DATA.backup $BASE
     fi
   else
     mkdir $BASE
-    if [ "$SERVIDOR" = "producao" ]
-    then
-      mv $BASE"_"$DATA.backup $BASE
-    else
+    if [ "$SERVIDOR" = "homologacao" ]; then
       mv "homologacao_"$BASE"_"$DATA.backup $BASE
+    else
+      mv $BASE"_"$DATA.backup $BASE
     fi
   fi
 }
@@ -118,14 +117,46 @@ help() {
   -== Opções ==-
 
    nenhum arg.  Baixa uma versão atualizada da base e importa automaticamente
+   -install                       Instala o Script (em desenvolvimento)
    -d,                            Apenas cria e baixa o dump da base escolhida
    -i <dump>,                     Importa um dump já existente
    -l,                            Cria dump da base local
-   -t <dump> <servidor remoto>,   Envia um dump existente para um servidor remoto (em desenvolvimento)
+   -r <dump> <servidor remoto>,   Envia um dump existente para um servidor remoto e importa-o (em desenvolvimento)
+   -t,                            Baixa a base do cliente escolhido do servidor de produção e importa no servidor de homologacao. (em desenvolvimento)
    -h,                            Exibe a ajuda
 
   "
   exit 0
+}
+
+uploadToHomologacao() {
+
+  USER=`echo $REMOTESERV | cut -d "@" -f 1`
+  DUMP=`echo $FILEDUMP | cut -d "/" -f 2`
+  BASE=`echo $DUMP | cut -d "_" -f 1`
+
+  scp $FILEDUMP $REMOTESERV:/home/$USER/
+  ssh $REMOTESERV test -e /home/$USER/$DUMP
+  if [ $? -eq 0 ]; then
+
+    echo "Arquivo existe"
+
+    echo "\033[01;37mDropando Schema no Servidor de homologacao\033[01;37m"
+    COMANDO_DROP=`echo "psql -U postgres -d homologacao_$BASE -c "DROP SCHEMA public CASCADE"; sleep 2"`
+    ssh $REMOTESERV $COMANDO_DROP
+
+    echo "\033[01;37mCriando Schema no Servidor de homologacao\033[01;37m"
+    COMANDO_CREATE=`echo "psql -U postgres -d homologacao_$BASE -c "CREATE SCHEMA public"; sleep 2"`
+    ssh $REMOTESERV $COMANDO_CREATE
+
+    echo "\033[01;32mImportando $DUMP para o banco no Servidor de homologacao\033[01;32m"
+    COMANDO_IMPORT=`echo "psql -h localhost -p 5432 -U homologacao_$BASE bentham < $DUMP"`
+    ssh $REMOTESERV $COMANDO_IMPORT
+  else
+
+    echo "\033[01;31mO arquivo de dump não foi encontrado no servidor, por favor verifique.\033[01;31m"
+
+  fi
 }
 
 serverSelect() {
@@ -158,8 +189,35 @@ if [ "$1" = "-h" ]; then
   help
 fi
 
+if [ "$1" = "-install" ]; then
+  echo "Instalando..."
+  if [ -e /usr/bin/bentham_db_swap-*.sh ]; then
+    read -p "Já existe uma versão instalada, deseja sobrescrever? (N/s) " OPTION
+    OPTION=${OPTION:-N}
+    if [ $OPTION = "S" -o $OPTION = "s" ]; then
+      sudo cp ./bentham_db_swap-$VERSION.sh /usr/bin
+      echo "Bentham DB Swap instalado com êxito."
+    fi
+  else
+    sudo cp ./bentham_db_swap-$VERSION.sh /usr/bin
+    echo "Bentham DB Swap instalado com êxito."
+  fi
+  exit 0
+fi
+
+if [ "$1" = "-r" ]; then
+  FILEDUMP=$2
+  REMOTESERV=$3
+  uploadToHomologacao $FILEDUMP $REMOTESERV
+  exit 0
+fi
+
 if [ "$1" = "-t" ]; then
-  echo "Esta opção ainda não está disponível..."
+  init
+  dumpProducao
+  organizar
+
+  echo "uploadToHomologacao $BASE/"$BASE""_""$DATA".backup ubuntu@homologacao.quantaconsultoria.com"
   exit 0
 fi
 
