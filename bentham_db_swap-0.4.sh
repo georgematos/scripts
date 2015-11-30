@@ -34,7 +34,7 @@ executar() {
 
 organizar() {
   if [ -d $BASE ]; then
-    if [ "$SERVIDOR" = "homologacao"]; then
+    if [ "$SERVIDOR" = "homologacao" ]; then
       mv "homologacao_"$BASE"_"$DATA.backup $BASE
     else
       mv $BASE"_"$DATA.backup $BASE
