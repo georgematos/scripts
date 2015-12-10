@@ -74,7 +74,7 @@ dumpHomologacao() {
 }
 
 dump_local() {
-  echo -n "Qual é a base atual? (preurbis/seasdhrj/prodoeste/cidades) "
+  echo -n "Qual é a base atual? (preurbis/seeljerj/prodoeste/cidades) "
   read BASE
   DATA=`date +%Y%m%d_%Hh%Mm`
   COMANDO_DUMP=`echo "sudo pg_dump -U postgres -W -h localhost bentham -f $BASE""_""$DATA.backup_local"`
@@ -83,7 +83,7 @@ dump_local() {
 }
 
 init() {
-  echo -n "Digite a base de sua preferencia (preurbis/seasdhrj/prodoeste/cidades) "
+  echo -n "Digite a base de sua preferencia (preurbis/seeljerj/prodoeste/cidades) "
   read BASE
 
   ssh ubuntu@quantaconsultoria.com test -d /home/ubuntu/$BASE
