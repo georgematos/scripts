@@ -1,6 +1,6 @@
 #!/bin/bash
 ORIGEM="/home/george/Desenvolvimento/Wiki_Bentham/"
-DESTINO="/media/george/KINGSTON8GB/Quanta/Wiki_Bentham/"
+DESTINO="/media/george/KINGSTON8GB/Informatica/Quanta/Wiki_Bentham/"
 
 cp -Rf $ORIGEM/* $DESTINO
 

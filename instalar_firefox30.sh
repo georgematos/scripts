@@ -34,7 +34,7 @@ then
       install
       clean
   else
-      wget ftp://ftp.mozilla.org/pub/mozilla.org/firefox/releases/30.0/linux-x86_64/en-US/firefox-30.0.tar.bz2
+      wget https://ftp.mozilla.org/pub/firefox/releases/30.0/linux-x86_64/pt-BR/firefox-30.0.tar.bz2
       install
       clean
   fi
