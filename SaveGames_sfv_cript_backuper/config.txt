@@ -1,0 +1,2 @@
+current_fid=Senshi-Hiro
+number_of_fid=1
